@@ -18,21 +18,33 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.BlockRayTraceResult;
+import net.minecraft.util.palette.PalettedContainer;
 import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.server.ServerChunkProvider;
 import net.minecraft.world.server.ServerWorld;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class LoadNbtBlock extends Block {
 
     public LoadNbtBlock() {
         super(Properties.of(Material.METAL, MaterialColor.COLOR_LIGHT_GRAY).requiresCorrectToolForDrops().strength(-1.0F, 3600000.0F).noDrops());
     }
+
+    // source: https://github.com/williambl/explosivessquared/blob/master/src/main/kotlin/com/williambl/explosivessquared/util/actions/MassBlockActionManager.kt
+    @FunctionalInterface
+    interface task<One, Two, Three> {
+        void apply(One one, Two two, Three three);
+    }
+    private final Map<Long, Pair<Integer, task<Chunk, World, Integer>>> chunkJobs = new HashMap<>();
 
     public ActionResultType use(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult hit) {
         if(!(world instanceof ServerWorld) || hand == Hand.MAIN_HAND) return ActionResultType.PASS;
@@ -57,37 +69,42 @@ public class LoadNbtBlock extends Block {
         int spacing = 48;
         BlockPos bounds = new BlockPos(spacing * (rowCount+2), spacing, spacing * columnCount);
 
+        BlockState structureVoid = Blocks.STRUCTURE_VOID.defaultBlockState();
+        BlockState barrier = Blocks.BARRIER.defaultBlockState();
+        short nonAir = 255;
+        short zero = 0;
+
         // Fill/clear area with structure void
         BlockPos.Mutable mutableChunk = new BlockPos.Mutable().set(pos.getX() >> 4, pos.getY(), pos.getZ() >> 4);
         mutableChunk.move(1,0,0);
         int endChunkX = (pos.getX() + bounds.getX()) >> 4;
         int endChunkZ = (pos.getZ() + bounds.getZ()) >> 4;
 
-        int maxChunks = (endChunkX-mutableChunk.getX()) + (endChunkZ-mutableChunk.getZ());
+        int maxChunks = (endChunkX - mutableChunk.getX()) * (endChunkZ - mutableChunk.getZ());
         int currentSection = 0;
-        BlockPos.Mutable mutablePos = new BlockPos.Mutable();
         for(; mutableChunk.getX() < endChunkX; mutableChunk.move(1,0,0)) {
             for (; mutableChunk.getZ() < endChunkZ; mutableChunk.move(0, 0, 1)) {
 
                 Chunk chunk = world.getChunk(mutableChunk.getX(), mutableChunk.getZ());
-
-                for(int y = -1; y < 48; y++){
-                    int yOffset = pos.getY() + y;
-                    BlockState stateToUse;
-                    if(y == -1){
-                        stateToUse = Blocks.STONE.defaultBlockState();
-                    }
-                    else if(y == 0){
-                        stateToUse = Blocks.BARRIER.defaultBlockState();
-                    }
-                    else{
-                        stateToUse = Blocks.STRUCTURE_VOID.defaultBlockState();
-                    }
-
-                    for(int x = 0; x < 16; x++){
-                        for(int z = 0; z < 16; z++){
-                            mutablePos.set(x, yOffset, z);
-                            chunk.setBlockState(mutablePos, stateToUse, false);
+                ChunkSection[] sections = chunk.getSections();
+                sections[1] = new ChunkSection(16, nonAir, zero, zero);
+                sections[2] = new ChunkSection(32, nonAir, zero, zero);
+                PalettedContainer<BlockState> bottomSection = sections[0].getStates();
+                PalettedContainer<BlockState> middleSection = sections[1].getStates();
+                PalettedContainer<BlockState> topSection = sections[2].getStates();
+                for(int x = 0; x < 16; x++){
+                    for(int z = 0; z < 16; z++){
+                        for(int y = 4; y < 16; y++){
+                            if(y == 4){
+                                bottomSection.getAndSetUnchecked(x, y, z, barrier);
+                            }
+                            else{
+                                bottomSection.getAndSetUnchecked(x, y, z, structureVoid);
+                            }
+                        }
+                        for(int y = 0; y < 16; y++){
+                            middleSection.getAndSetUnchecked(x, y, z, structureVoid);
+                            topSection.getAndSetUnchecked(x, y, z, structureVoid);
                         }
                     }
                 }

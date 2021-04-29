@@ -43,7 +43,7 @@ minecraft {
     runs {
         client {
             workingDirectory project.file('run')
-            arg "-mixin.config=loadnbtblock.mixins.json"
+            //arg "-mixin.config=loadnbtblock.mixins.json"
 
             // Recommended logging data for a userdev environment
             // The markers can be changed as needed. 
@@ -66,7 +66,7 @@ minecraft {
 
         server {
             workingDirectory project.file('run')
-            arg "-mixin.config=loadnbtblock.mixins.json"
+            //arg "-mixin.config=loadnbtblock.mixins.json"
 
             // Recommended logging data for a userdev environment
             // The markers can be changed as needed. 
@@ -154,7 +154,7 @@ jar {
             "Implementation-Version": "${version}",
             "Implementation-Vendor" :"telepathicgrunt",
             "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-            "MixinConfigs": "loadnbtblock.mixins.json"
+            //"MixinConfigs": "loadnbtblock.mixins.json"
         ])
     }
 }
@@ -178,8 +178,8 @@ publishing {
     }
 }
 
-apply plugin: 'org.spongepowered.mixin'
+//apply plugin: 'org.spongepowered.mixin'
 
-mixin {
-    add sourceSets.main, "loadnbtblock.refmap.json"
-}
+//mixin {
+//    add sourceSets.main, "loadnbtblock.refmap.json"
+//}
