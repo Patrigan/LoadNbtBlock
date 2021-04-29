@@ -1,23 +1,28 @@
 package com.telepathicgrunt.loadnbtblock.blocks;
 
 import com.telepathicgrunt.loadnbtblock.utils.StructureNbtDataFixer;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.block.*;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.StructureBlockBlockEntity;
-import net.minecraft.block.enums.StructureBlockMode;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.StructureBlock;
+import net.minecraft.block.material.Material;
+import net.minecraft.block.material.MaterialColor;
+import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
-import net.minecraft.server.world.ServerChunkManager;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.TranslatableText;
-import net.minecraft.util.ActionResult;
+import net.minecraft.network.play.server.SChunkDataPacket;
+import net.minecraft.state.properties.StructureMode;
+import net.minecraft.tileentity.StructureBlockTileEntity;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.util.ActionResultType;
 import net.minecraft.util.Hand;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.BlockRayTraceResult;
+import net.minecraft.util.text.TranslationTextComponent;
 import net.minecraft.world.World;
-import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.server.ServerChunkProvider;
+import net.minecraft.world.server.ServerWorld;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -26,24 +31,24 @@ import java.util.List;
 public class LoadNbtBlock extends Block {
 
     public LoadNbtBlock() {
-        super(Settings.of(Material.METAL, MaterialColor.LIGHT_GRAY).requiresTool().strength(-1.0F, 3600000.0F).dropsNothing());
+        super(Properties.of(Material.METAL, MaterialColor.COLOR_LIGHT_GRAY).requiresCorrectToolForDrops().strength(-1.0F, 3600000.0F).noDrops());
     }
 
-    public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-        if(!(world instanceof ServerWorld) || hand == Hand.MAIN_HAND) return ActionResult.PASS;
+    public ActionResultType use(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult hit) {
+        if(!(world instanceof ServerWorld) || hand == Hand.MAIN_HAND) return ActionResultType.PASS;
 
-        String mainPath = FabricLoader.getInstance().getGameDir().getParent().getParent().toString();
+        String mainPath = Minecraft.getInstance().gameDirectory.getAbsoluteFile().toPath().getParent().getParent().toString();
         String resourcePath = mainPath+"\\src\\main\\resources\\data";
 
-        player.sendMessage(new TranslatableText(" Working.... "), true);
+        player.displayClientMessage(new TranslationTextComponent(" Working.... "), true);
 
         // Finds and gets all identifiers for pieces
         List<File> files = new ArrayList<>();
-        List<Identifier> identifiers = new ArrayList<>();
+        List<ResourceLocation> identifiers = new ArrayList<>();
         StructureNbtDataFixer.setAllNbtFilesToList(resourcePath, files);
         for(File file : files){
             String modifiedFileName = file.getAbsolutePath().replace(resourcePath+"\\","").replace("\\structures\\",":").replace(".nbt","").replace('\\','/');
-            identifiers.add(new Identifier(modifiedFileName));
+            identifiers.add(new ResourceLocation(modifiedFileName));
         }
 
         // Size of area we will need
@@ -64,19 +69,19 @@ public class LoadNbtBlock extends Block {
         for(; mutableChunk.getX() < endChunkX; mutableChunk.move(1,0,0)) {
             for (; mutableChunk.getZ() < endChunkZ; mutableChunk.move(0, 0, 1)) {
 
-                WorldChunk chunk = world.getChunk(mutableChunk.getX(), mutableChunk.getZ());
+                Chunk chunk = world.getChunk(mutableChunk.getX(), mutableChunk.getZ());
 
                 for(int y = -1; y < 48; y++){
                     int yOffset = pos.getY() + y;
                     BlockState stateToUse;
                     if(y == -1){
-                        stateToUse = Blocks.STONE.getDefaultState();
+                        stateToUse = Blocks.STONE.defaultBlockState();
                     }
                     else if(y == 0){
-                        stateToUse = Blocks.BARRIER.getDefaultState();
+                        stateToUse = Blocks.BARRIER.defaultBlockState();
                     }
                     else{
-                        stateToUse = Blocks.STRUCTURE_VOID.getDefaultState();
+                        stateToUse = Blocks.STRUCTURE_VOID.defaultBlockState();
                     }
 
                     for(int x = 0; x < 16; x++){
@@ -88,40 +93,40 @@ public class LoadNbtBlock extends Block {
                 }
 
                 currentSection++;
-                chunk.markDirty();
+                chunk.markUnsaved();
                 // Send changes to client to see
-                ((ServerChunkManager) world.getChunkManager()).threadedAnvilChunkStorage
-                        .getPlayersWatchingChunk(chunk.getPos(), false)
-                        .forEach(s -> s.networkHandler.sendPacket(new ChunkDataS2CPacket(chunk, 65535)));
-                player.sendMessage(new TranslatableText("Working: %" +  Math.round(((float)currentSection / maxChunks) * 100f) / 100f), true);
+                ((ServerChunkProvider) world.getChunkSource()).chunkMap
+                        .getPlayers(chunk.getPos(), false)
+                        .forEach(s -> s.connection.send(new SChunkDataPacket(chunk, 65535)));
+                player.displayClientMessage(new TranslationTextComponent("Working: %" +  Math.round(((float)currentSection / maxChunks) * 100f) / 100f), true);
             }
             mutableChunk.set(mutableChunk.getX(), mutableChunk.getY(), pos.getZ() >> 4); // Set back to start of row
         }
 
         generateStructurePieces(world, pos, player, identifiers, columnCount, spacing, mutableChunk);
-        return ActionResult.SUCCESS;
+        return ActionResultType.SUCCESS;
     }
 
 
-    private void generateStructurePieces(World world, BlockPos pos, PlayerEntity player, List<Identifier> identifiers, int columnCount, int spacing, BlockPos.Mutable mutableChunk) {
+    private void generateStructurePieces(World world, BlockPos pos, PlayerEntity player, List<ResourceLocation> identifiers, int columnCount, int spacing, BlockPos.Mutable mutableChunk) {
         mutableChunk.set(((pos.getX() >> 4) + 1) << 4, pos.getY(), (pos.getZ() >> 4) << 4);
 
         for(int pieceIndex = 1; pieceIndex <= identifiers.size(); pieceIndex++){
-            player.sendMessage(new TranslatableText(" Working making structure: "+ identifiers.get(pieceIndex-1)), true);
+            player.displayClientMessage(new TranslationTextComponent(" Working making structure: "+ identifiers.get(pieceIndex-1)), true);
 
-            world.setBlockState(mutableChunk, Blocks.STRUCTURE_BLOCK.getDefaultState().with(StructureBlock.MODE, StructureBlockMode.LOAD), 3);
-            BlockEntity be = world.getBlockEntity(mutableChunk);
-            if(be instanceof StructureBlockBlockEntity){
-                StructureBlockBlockEntity structureBlockBlockEntity = (StructureBlockBlockEntity)be;
-                structureBlockBlockEntity.setStructureName(identifiers.get(pieceIndex-1)); // set identifier
+            world.setBlock(mutableChunk, Blocks.STRUCTURE_BLOCK.defaultBlockState().setValue(StructureBlock.MODE, StructureMode.LOAD), 3);
+            TileEntity be = world.getBlockEntity(mutableChunk);
+            if(be instanceof StructureBlockTileEntity){
+                StructureBlockTileEntity structureBlockTileEntity = (StructureBlockTileEntity)be;
+                structureBlockTileEntity.setStructureName(identifiers.get(pieceIndex-1)); // set identifier
 
-                structureBlockBlockEntity.setMode(StructureBlockMode.LOAD);
-                structureBlockBlockEntity.loadStructure((ServerWorld) world,false); // load structure
+                structureBlockTileEntity.setMode(StructureMode.LOAD);
+                structureBlockTileEntity.loadStructure((ServerWorld) world,false); // load structure
 
-                structureBlockBlockEntity.setMode(StructureBlockMode.SAVE);
-                //structureBlockBlockEntity.saveStructure(true); //save structure
-                //structureBlockBlockEntity.setShowAir(true);
-                structureBlockBlockEntity.setIgnoreEntities(false);
+                structureBlockTileEntity.setMode(StructureMode.SAVE);
+                //structureBlockTileEntity.saveStructure(true); //save structure
+                //structureBlockTileEntity.setShowAir(true);
+                structureBlockTileEntity.setIgnoreEntities(false);
             }
 
             mutableChunk.move(0,0, spacing);

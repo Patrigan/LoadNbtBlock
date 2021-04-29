@@ -5,7 +5,7 @@
   "compatibilityLevel": "JAVA_8",
   "mixins": [
     "MinecraftServerAccessor",
-    "StructureManagerAccessor"
+    "TemplateManagerAccessor"
   ],
   "client": [],
   "injectors": {

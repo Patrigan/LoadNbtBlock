@@ -1,26 +1,21 @@
 package com.telepathicgrunt.loadnbtblock;
 
-import net.fabricmc.api.ModInitializer;
-import net.minecraft.block.Block;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.registry.Registry;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class LoadNbtBlock implements ModInitializer
-{
+@Mod(LoadNbtBlock.MODID)
+public class LoadNbtBlock {
     public static final String MODID = "loadnbtblock";
     public static final Logger LOGGER = LogManager.getLogger();
 
-    public static final Block LOAD_NBT_BLOCK = new com.telepathicgrunt.loadnbtblock.blocks.LoadNbtBlock();
-    public static final Item LOAD_NBT_ITEM = new BlockItem(LOAD_NBT_BLOCK, new Item.Settings().group(ItemGroup.REDSTONE));
 
-    @Override
-    public void onInitialize() {
-        Registry.register(Registry.BLOCK, new Identifier(MODID, "load_nbt_block"), LOAD_NBT_BLOCK);
-        Registry.register(Registry.ITEM, new Identifier(MODID, "load_nbt_block"), LOAD_NBT_ITEM);
+    public LoadNbtBlock() {
+        IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+        ModBlocks.BLOCKS.register(modEventBus);
+        ModItems.ITEMS.register(modEventBus);
     }
+
 }

@@ -6,6 +6,6 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(MinecraftServer.class)
 public interface MinecraftServerAccessor {
-    @Accessor("ticks")
-    int lnbtb_getTicks();
+    @Accessor("tickCount")
+    int lnbtb_getTickCount();
 }
