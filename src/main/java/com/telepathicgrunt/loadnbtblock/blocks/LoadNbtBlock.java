@@ -1,15 +1,14 @@
 package com.telepathicgrunt.loadnbtblock.blocks;
 
-import com.telepathicgrunt.loadnbtblock.utils.StructureNbtDataFixer;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.StructureBlock;
 import net.minecraft.block.material.Material;
 import net.minecraft.block.material.MaterialColor;
-import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.play.server.SChunkDataPacket;
+import net.minecraft.resources.IResourceManager;
 import net.minecraft.state.properties.StructureMode;
 import net.minecraft.tileentity.StructureBlockTileEntity;
 import net.minecraft.tileentity.TileEntity;
@@ -27,11 +26,8 @@ import net.minecraft.world.server.ServerChunkProvider;
 import net.minecraft.world.server.ServerWorld;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class LoadNbtBlock extends Block {
 
@@ -49,19 +45,7 @@ public class LoadNbtBlock extends Block {
     public ActionResultType use(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult hit) {
         if(!(world instanceof ServerWorld) || hand == Hand.MAIN_HAND) return ActionResultType.PASS;
 
-        String mainPath = Minecraft.getInstance().gameDirectory.getAbsoluteFile().toPath().getParent().getParent().toString();
-        String resourcePath = mainPath+"\\src\\main\\resources\\data";
-
-        player.displayClientMessage(new TranslationTextComponent(" Working.... "), true);
-
-        // Finds and gets all identifiers for pieces
-        List<File> files = new ArrayList<>();
-        List<ResourceLocation> identifiers = new ArrayList<>();
-        StructureNbtDataFixer.setAllNbtFilesToList(resourcePath, files);
-        for(File file : files){
-            String modifiedFileName = file.getAbsolutePath().replace(resourcePath+"\\","").replace("\\structures\\",":").replace(".nbt","").replace('\\','/');
-            identifiers.add(new ResourceLocation(modifiedFileName));
-        }
+        List<ResourceLocation> identifiers = getResourceLocations(player, (ServerWorld) world, "dungeons_world");
 
         // Size of area we will need
         int columnCount = 13;
@@ -115,13 +99,23 @@ public class LoadNbtBlock extends Block {
                 ((ServerChunkProvider) world.getChunkSource()).chunkMap
                         .getPlayers(chunk.getPos(), false)
                         .forEach(s -> s.connection.send(new SChunkDataPacket(chunk, 65535)));
-                player.displayClientMessage(new TranslationTextComponent("Working: %" +  Math.round(((float)currentSection / maxChunks) * 100f) / 100f), true);
+                player.displayClientMessage(new TranslationTextComponent("Working: %" +  Math.round(((float)currentSection / maxChunks) * 100f)), true);
             }
             mutableChunk.set(mutableChunk.getX(), mutableChunk.getY(), pos.getZ() >> 4); // Set back to start of row
         }
 
         generateStructurePieces(world, pos, player, identifiers, columnCount, spacing, mutableChunk);
         return ActionResultType.SUCCESS;
+    }
+
+    private List<ResourceLocation> getResourceLocations(PlayerEntity player, ServerWorld world, String modId) {
+        player.displayClientMessage(new TranslationTextComponent(" Working.... "), true);
+        IResourceManager resourceManager = world.getServer().getDataPackRegistries().getResourceManager();
+        return resourceManager.listResources("structures", (filename) -> filename.endsWith(".nbt"))
+                .stream()
+                .filter(resourceLocation -> resourceLocation.getNamespace().equals(modId))
+                .map(resourceLocation -> new ResourceLocation(resourceLocation.getNamespace(), resourceLocation.getPath().replaceAll("structures/", "").replaceAll(".nbt", "")))
+                .collect(Collectors.toList());
     }
 
 
@@ -138,6 +132,7 @@ public class LoadNbtBlock extends Block {
                 structureBlockTileEntity.setStructureName(identifiers.get(pieceIndex-1)); // set identifier
 
                 structureBlockTileEntity.setMode(StructureMode.LOAD);
+                structureBlockTileEntity.setIgnoreEntities(false);
                 structureBlockTileEntity.loadStructure((ServerWorld) world,false); // load structure
 
                 structureBlockTileEntity.setMode(StructureMode.SAVE);
