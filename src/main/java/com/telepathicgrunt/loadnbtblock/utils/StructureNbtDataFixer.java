@@ -1,10 +1,10 @@
 package com.telepathicgrunt.loadnbtblock.utils;
 
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.nbt.CompressedStreamTools;
-import net.minecraft.nbt.NBTUtil;
-import net.minecraft.util.datafix.DataFixesManager;
-import net.minecraft.util.datafix.DefaultTypeReferences;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.util.datafix.DataFixers;
+import net.minecraft.util.datafix.DataFixTypes;
 
 import java.io.*;
 import java.util.List;
@@ -38,13 +38,13 @@ public class StructureNbtDataFixer {
             resultingFile.getParentFile().mkdirs();
             OutputStream outputStream = new FileOutputStream(resultingFile);
 
-            CompoundNBT newNBT = updateNbtCompound(inputStream);
-            CompressedStreamTools.writeCompressed(newNBT, outputStream);
+            CompoundTag newNBT = updateNbtCompound(inputStream);
+            NbtIo.writeCompressed(newNBT, outputStream);
         }
     }
 
-    public static CompoundNBT updateNbtCompound(InputStream structureInputStream) throws IOException {
-        CompoundNBT compoundTag = CompressedStreamTools.readCompressed(structureInputStream);
-        return NBTUtil.update(DataFixesManager.getDataFixer(), DefaultTypeReferences.STRUCTURE, compoundTag, compoundTag.getInt("DataVersion"), compoundTag.getInt("DataVersion"));
+    public static CompoundTag updateNbtCompound(InputStream structureInputStream) throws IOException {
+        CompoundTag compoundTag = NbtIo.readCompressed(structureInputStream);
+        return NbtUtils.update(DataFixers.getDataFixer(), DataFixTypes.STRUCTURE, compoundTag, compoundTag.getInt("DataVersion"), compoundTag.getInt("DataVersion"));
     }
 }

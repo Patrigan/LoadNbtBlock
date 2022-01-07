@@ -1,0 +1,11 @@
+{
+  "loadnbtblock.fill_label": "Fill Block",
+  "loadnbtblock.floor_label": "Floor Block",
+  "loadnbtblock.modid_label": "Mod Id Filter",
+  "loadnbtblock.filter_label": "Other Filter",
+  "loadnbtblock.fill": "Fill Block",
+  "loadnbtblock.floor": "Floor Block",
+  "loadnbtblock.modid": "Mod Id Filter",
+  "loadnbtblock.filter": "Other Filter",
+  "block.loadnbtblock.load_nbt_block": "Load NBT Block"
+}

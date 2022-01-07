@@ -1,12 +1,12 @@
 package com.telepathicgrunt.loadnbtblock;
 
-import net.minecraft.block.Block;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemGroup;
-import net.minecraftforge.fml.RegistryObject;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 
 import java.util.function.Supplier;
 
@@ -19,7 +19,7 @@ public class ModBlocks {
 
     private static RegistryObject<Block> registerBlock(String id, Supplier<Block> sup) {
         RegistryObject<Block> blockRegistryObject = BLOCKS.register(id, sup);
-        registerBlockItem(id, blockRegistryObject, blockSupplier -> new BlockItem(blockSupplier.get(), new Item.Properties().tab(ItemGroup.TAB_REDSTONE)));
+        registerBlockItem(id, blockRegistryObject, blockSupplier -> new BlockItem(blockSupplier.get(), new Item.Properties().tab(CreativeModeTab.TAB_REDSTONE)));
         return blockRegistryObject;
     }
 }
